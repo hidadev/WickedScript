@@ -185,14 +185,16 @@ def update_jamf_asset(serial: str, data: dict):
         logging.error(err)
 
 def main():
-    start_date = datetime.now() - timedelta(minutes=6)
+    start_date = datetime.now() - timedelta(hours=config.TIMEFRAME_HOURS, minutes=config.TIMEFRAME_MINUTES)
     logging.info('Starting the script...')
     logging.info('Retrieving updated assets...')
     asset_list = get_updated_assets(start_date)
     logging.info('Formatting assets...')
     formatted_assets = format_assets(asset_list)
+    logging.info('Uploading to JAMF...')
     for serial, data in formatted_assets.items():
         update_jamf_asset(serial, data)
+    logging.info('DONE')
 
 if __name__ == '__main__':
     main()
