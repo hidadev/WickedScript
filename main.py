@@ -7,7 +7,7 @@ import re
 import config
 
 snipeit = SnipeIT(config.SNIPEIT_API_URL, config.SNIPEIT_API_KEY)
-jamf = API(hostname=config.JSS_API_URL, username=config.JSS_API_USERNAME, password=config.JSS_API_PASS, prompt=False)
+jamf = API(hostname=config.JSS_API_URL, username=config.JSS_API_USERNAME, password=config.JSS_API_PASS, prompt=True)
 
 now = datetime.now()
 logging.basicConfig(filename=f'./logs/{now.strftime("%d-%m-%Y_%H-%M-%S")}.log', level=logging.DEBUG,
@@ -185,7 +185,7 @@ def update_jamf_asset(serial: str, data: dict):
         logging.error(err)
 
 def main():
-    start_date = datetime.now() - timedelta(hours=config.TIMEFRAME_HOURS, minutes=config.TIMEFRAME_MINUTES)
+    start_date = datetime.now() - timedelta(hours=config.TIMEFRAME_HOURS)
     logging.info('Starting the script...')
     logging.info('Retrieving updated assets...')
     asset_list = get_updated_assets(start_date)
