@@ -1,0 +1,7 @@
+
+/venv
+/__pycache__
+.pypirc
+/build
+/dist
+config.py

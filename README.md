@@ -1,1 +1,1 @@
-# WickedScript
+# snipeit2jamf script

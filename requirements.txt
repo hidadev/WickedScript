@@ -1,0 +1,10 @@
+certifi==2021.10.8
+charset-normalizer==2.0.12
+idna==3.3
+importlib-metadata==4.11.1
+keyring==23.5.0
+python-jamf==0.7.3
+requests==2.27.1
+snipeit-api-controller==0.2.2
+urllib3==1.26.8
+zipp==3.7.0
