@@ -2,18 +2,29 @@ from snipeit import SnipeIT
 from jamf import API
 import logging
 from datetime import datetime, timedelta
+import time
 import requests
 import re
 import config
+import os
 
 snipeit = SnipeIT(config.SNIPEIT_API_URL, config.SNIPEIT_API_KEY)
 jamf = API(hostname=config.JSS_API_URL, username=config.JSS_API_USERNAME, password=config.JSS_API_PASS, prompt=True)
 
 now = datetime.now()
-logging.basicConfig(filename=f'./logs/{now.strftime("%d-%m-%Y_%H-%M-%S")}.log', level=logging.DEBUG,
+logging.basicConfig(filename=f'{config.LOGS_PATH}/{now.strftime("%d-%m-%Y_%H-%M-%S")}.log', level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
-# TODO: Delete older logs
+def delete_old_logs():
+    """Delete older logs. The time limit is specified in days in the configuration.
+    """
+    log_files = os.listdir(config.LOGS_PATH)
+    cut_date = datetime.now() - timedelta(days=config.LOGS_DELETE_DAYS)
+
+    for log_file in log_files:
+        creation_date = datetime.strptime(time.ctime(os.path.getctime(config.LOGS_PATH + '/' + log_file)), '%a %b %d %H:%M:%S %Y')
+        if creation_date < cut_date:
+            os.remove(config.LOGS_PATH + '/' + log_file)
 
 def get_updated_assets(start_date, offset=0):
     """Get a list off recently updated Apple assets
@@ -43,7 +54,7 @@ def get_updated_assets(start_date, offset=0):
             return r + new_items
         else:
             # Go backwords from last and remove items that are not in the timeframe
-            for i in range(len(r) - 1, 0, -1):
+            for i in range(len(r) - 1, -1, -1):
                 if datetime.strptime(r[i]['updated_at']['datetime'], '%Y-%m-%d %H:%M:%S') < start_date:
                     del r[i]
             return r
@@ -185,6 +196,9 @@ def update_jamf_asset(serial: str, data: dict):
         logging.error(err)
 
 def main():
+    logging.info('Deleting old logs...')
+    delete_old_logs()
+
     start_date = datetime.now() - timedelta(hours=config.TIMEFRAME_HOURS)
     logging.info('Starting the script...')
     logging.info('Retrieving updated assets...')
