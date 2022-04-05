@@ -8,6 +8,19 @@ import re
 import config
 import os
 
+STATUS_LABELS = {
+    'Computing Lab': 11,
+    'Departmental': 6,
+    'Loaner': 13,
+    'On Hold': 1,
+    'Primary': 4,
+    'Ready to Deploy': 2,
+    'Received': 14,
+    'Repurpose': 10,
+    'Salvaged': 3,
+    'Secondary': 7
+}
+
 snipeit = SnipeIT(config.SNIPEIT_API_URL, config.SNIPEIT_API_KEY)
 jamf = API(hostname=config.JSS_API_URL, username=config.JSS_API_USERNAME, password=config.JSS_API_PASS, prompt=True)
 
@@ -117,10 +130,15 @@ def format_assets(asset_list):
     formatted_assets = {}
     for asset in asset_list:
         logging.debug(f'{asset["name"]} {asset["serial"]}')
-
+        asset_type = None
+        if asset['category']['name'] == 'Tablet':
+            asset_type = 'mobile_device'
+        else:
+            asset_type = 'computer'
+        
         # General and Purchasing information
         asset_data = {
-            'computer': {
+            asset_type: {
                 'general': {
                     'name': asset['name'],
                     'asset_tag': asset['asset_tag'] if asset['asset_tag'] is not None else format_asset_tag(asset['name'])
@@ -140,10 +158,10 @@ def format_assets(asset_list):
             if asset['assigned_to']['type'] == 'user':
                 user = get_jss_user(asset['assigned_to']['username'])
                 if user is not None:
-                    asset_data['computer']['location'] = user
-                    asset_data['computer']['location']['email_address'] = f"{asset['assigned_to']['username']}@asu.edu"
+                    asset_data[asset_type]['location'] = user
+                    asset_data[asset_type]['location']['email_address'] = f"{asset['assigned_to']['username']}@asu.edu"
                 else:
-                    asset_data['computer']['location'] = {
+                    asset_data[asset_type]['location'] = {
                         'username': asset['assigned_to']['username'],
                         'realname': asset['assigned_to']['name'],
                         'real_name': asset['assigned_to']['name'],
@@ -153,7 +171,7 @@ def format_assets(asset_list):
                         'phone_number': None
                     }
             else: # If assigned to either location or asset
-                asset_data['computer']['location'] = {
+                asset_data[asset_type]['location'] = {
                     'username': 'hidait',
                     'realname': 'HIDA IT',
                     'real_name': 'HIDA IT',
@@ -163,7 +181,7 @@ def format_assets(asset_list):
                     'phone_number': '480-965-6911'
                 }
         else: # If not assigned to anyone
-            asset_data['computer']['location'] = {
+            asset_data[asset_type]['location'] = {
                 'username': None,
                 'realname': None,
                 'real_name': None,
@@ -175,25 +193,50 @@ def format_assets(asset_list):
 
         # Check if building and room custom fields exist
         if asset['custom_fields'] != []:
-            asset_data['computer']['location']['building'] = asset['custom_fields']['Building']['value'] if asset['custom_fields']['Building'] is not None else None
-            asset_data['computer']['location']['room'] = asset['custom_fields']['Room ']['value'] if asset['custom_fields']['Room '] is not None else None
+            asset_data[asset_type]['location']['building'] = asset['custom_fields']['Building']['value'] if asset['custom_fields']['Building'] is not None else None
+            asset_data[asset_type]['location']['room'] = asset['custom_fields']['Room ']['value'] if asset['custom_fields']['Room '] is not None else None
 
         # Department
         if asset['company'] is not None:
-            asset_data['computer']['location']['department'] = asset['company']['name']
+            asset_data[asset_type]['location']['department'] = asset['company']['name']
 
-        # TODO: Usage info
-
-        # TODO: can delete computers that are archved if needed
+        # Usage info
+        if asset['status_label']['id'] in [STATUS_LABELS['Ready to Deploy'], STATUS_LABELS['Received']]:
+            asset_data[asset_type]['extension_attributes'] = {
+                'extension_attribute': [
+                    {
+                        'name': 'Usage',
+                        'value': 'On Hold'
+                    }
+                ]
+            }
+        elif asset['status_label']['name'] in STATUS_LABELS:
+            asset_data[asset_type]['extension_attributes'] = {
+                'extension_attribute': [
+                    {
+                        'name': 'Usage',
+                        'value': asset['status_label']['name']
+                    }
+                ]
+            }
+        else:
+            logging.debug('Couldn\'t match usage information')
 
         formatted_assets[asset['serial']] = asset_data
     return formatted_assets
 
-def update_jamf_asset(serial: str, data: dict):
-    try:
-        jamf.put('computers/serialnumber/' + serial, data)
-    except Exception as err:
-        logging.error(err)
+def update_jamf_computer(serial: str, data: dict):
+    # Check if it is an iPad/mobile device or not
+    if 'mobile_device' in data:
+        try:
+            jamf.put('mobiledevices/serialnumber/' + serial, data)
+        except Exception as err:
+            logging.error(err)
+    else:
+        try:
+            jamf.put('computers/serialnumber/' + serial, data)
+        except Exception as err:
+            logging.error(err)
 
 def main():
     logging.info('Deleting old logs...')
@@ -207,7 +250,7 @@ def main():
     formatted_assets = format_assets(asset_list)
     logging.info('Uploading to JAMF...')
     for serial, data in formatted_assets.items():
-        update_jamf_asset(serial, data)
+        update_jamf_computer(serial, data)
     logging.info('DONE')
 
 if __name__ == '__main__':
