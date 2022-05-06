@@ -26,7 +26,7 @@ snipeit = SnipeIT(config.SNIPEIT_API_URL, config.SNIPEIT_API_KEY)
 jamf = API(hostname=config.JSS_API_URL, username=config.JSS_API_USERNAME, password=config.JSS_API_PASS, prompt=True)
 
 now = datetime.now()
-logging.basicConfig(filename=f'{config.LOGS_PATH}/{now.strftime("%d-%m-%Y_%H-%M-%S")}.log', level=logging.DEBUG,
+logging.basicConfig(filename=f'{config.PATH}/logs/{now.strftime("%d-%m-%Y_%H-%M-%S")}.log', level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
 # Stores list of computers that failed to be loaded into retry queue
@@ -35,13 +35,13 @@ failed_assets = []
 def delete_old_logs():
     """Delete older logs. The time limit is specified in days in the configuration.
     """
-    log_files = os.listdir(config.LOGS_PATH)
+    log_files = os.listdir(config.PATH + '/logs/')
     cut_date = datetime.now() - timedelta(days=config.LOGS_DELETE_DAYS)
 
     for log_file in log_files:
-        creation_date = datetime.strptime(time.ctime(os.path.getctime(config.LOGS_PATH + '/' + log_file)), '%a %b %d %H:%M:%S %Y')
+        creation_date = datetime.strptime(time.ctime(os.path.getctime(config.PATH + '/logs/' + log_file)), '%a %b %d %H:%M:%S %Y')
         if creation_date < cut_date:
-            os.remove(config.LOGS_PATH + '/' + log_file)
+            os.remove(config.PATH + '/logs/' + log_file)
 
 def get_updated_assets(start_date, offset=0):
     """Get a list off recently updated Apple assets
@@ -299,7 +299,7 @@ def main():
     for serial, data in formatted_assets.items():
         update_jamf_computer(serial, data)
     logging.info('Saving failed assets...')
-    with open('failed_assets.json', 'w') as f:
+    with open(f'{config.PATH}/failed_assets.json', 'w') as f:
         json.dump({'assets': failed_assets}, f)
     logging.info('DONE')
 

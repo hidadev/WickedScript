@@ -8,4 +8,4 @@ JSS_API_PASS = 'jss-pass'
 JSS_API_URL = 'jss-url'
 SNIPEIT_PULL_SIZE = 25
 TIMEFRAME_HOURS = 0
-LOGS_PATH = 'path/to/logs/folder'
+PATH = 'path/to/folder'
