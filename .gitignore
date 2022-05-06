@@ -6,3 +6,4 @@
 /dist
 config.py
 /logs/
+failed_assets.json

@@ -7,6 +7,7 @@ import requests
 import re
 import config
 import os
+import json
 
 STATUS_LABELS = {
     'Computing Lab': 11,
@@ -27,6 +28,9 @@ jamf = API(hostname=config.JSS_API_URL, username=config.JSS_API_USERNAME, passwo
 now = datetime.now()
 logging.basicConfig(filename=f'{config.LOGS_PATH}/{now.strftime("%d-%m-%Y_%H-%M-%S")}.log', level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
+# Stores list of computers that failed to be loaded into retry queue
+failed_assets = []
 
 def delete_old_logs():
     """Delete older logs. The time limit is specified in days in the configuration.
@@ -73,6 +77,39 @@ def get_updated_assets(start_date, offset=0):
             return r
 
     return None
+
+def get_failed_assets():
+    """Get a list of previously failed asset for a new update attempt
+
+    Returns:
+        list: List of assets from snipeit
+    """
+    try:
+        with open('failed_assets.json', 'r') as f:
+            assets = json.load(f)
+    except Exception as err:
+        logging.error(err)
+        return []
+
+    unformatted_assets = []
+    
+    for asset in assets['assets']:
+        try:
+            r = snipeit.assets.get(search=asset)
+            r = r['rows'][0]
+        except requests.exceptions.ConnectionError as err:
+            logging.error(err)
+            continue
+        except requests.exceptions.Timeout as err:
+            logging.error(err)
+            continue
+        except requests.exceptions.RequestException as err:
+            logging.error(err)
+            continue
+        else:
+            unformatted_assets.append(r)
+
+    return unformatted_assets
 
 def get_jss_user(username: str):
     """Get user information from Jamf
@@ -231,11 +268,15 @@ def update_jamf_computer(serial: str, data: dict):
         try:
             jamf.put('mobiledevices/serialnumber/' + serial, data)
         except Exception as err:
+            # Add to queue
+            failed_assets.append(serial)
             logging.error(err)
     else:
         try:
             jamf.put('computers/serialnumber/' + serial, data)
         except Exception as err:
+            # Add to queue
+            failed_assets.append(serial)
             logging.error(err)
 
 def main():
@@ -246,11 +287,20 @@ def main():
     logging.info('Starting the script...')
     logging.info('Retrieving updated assets...')
     asset_list = get_updated_assets(start_date)
+
+    logging.info('Retrieving failed assets...')
+    # add previously failed assets
+    failed_assets_list = get_failed_assets()
+    asset_list = asset_list + failed_assets_list
+
     logging.info('Formatting assets...')
     formatted_assets = format_assets(asset_list)
     logging.info('Uploading to JAMF...')
     for serial, data in formatted_assets.items():
         update_jamf_computer(serial, data)
+    logging.info('Saving failed assets...')
+    with open('failed_assets.json', 'w') as f:
+        json.dump({'assets': failed_assets}, f)
     logging.info('DONE')
 
 if __name__ == '__main__':
