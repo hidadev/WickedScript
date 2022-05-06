@@ -292,7 +292,6 @@ def main():
     # add previously failed assets
     failed_assets_list = get_failed_assets()
     asset_list = asset_list + failed_assets_list
-
     logging.info('Formatting assets...')
     formatted_assets = format_assets(asset_list)
     logging.info('Uploading to JAMF...')
