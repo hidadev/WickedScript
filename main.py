@@ -85,7 +85,7 @@ def get_failed_assets():
         list: List of assets from snipeit
     """
     try:
-        with open('failed_assets.json', 'r') as f:
+        with open(f'{config.PATH}/failed_assets.json', 'r') as f:
             assets = json.load(f)
     except Exception as err:
         logging.error(err)
