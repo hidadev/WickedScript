@@ -38,12 +38,12 @@ JSS_API_USERNAME = 'apieditor'
 JSS_API_PASS = 'password'
 JSS_API_URL = 'https://jss.hida.asu.edu:8443'
 SNIPEIT_PULL_SIZE = 25  # This is the amount of updated computers 
-												# pulled at one time. Most of the time, there are
-												# only a few computers updated in one day, meaning
-												# there is no need to pull all of them
+                        # pulled at one time. Most of the time, there are
+                        # only a few computers updated in one day, meaning
+                        # there is no need to pull all of them
 TIMEFRAME_DAYS = 0 # Amount of days to look back for updated assets
 TIMEFRAME_HOURS = 12.5 # This is the amount of hours to look back for updated
-										   # computers, since script runs every 12hrs, we do 12 + 30 min buffer
+                       # computers, since script runs every 12hrs, we do 12 + 30 min buffer
 PATH = '/Users/anthony/Documents/WickedScript' # Path to script main folder location
 LOGS_DELETE_DAYS = 7 # Amount of days after which logs get deleted
 ```
