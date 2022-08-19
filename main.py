@@ -19,7 +19,9 @@ STATUS_LABELS = {
     'Received': 14,
     'Repurpose': 10,
     'Salvaged': 3,
-    'Secondary': 7
+    'Secondary': 7,
+    '30 Day Hold': 15,
+    'Imaging': 16
 }
 
 snipeit = SnipeIT(config.SNIPEIT_API_URL, config.SNIPEIT_API_KEY)
@@ -283,7 +285,7 @@ def main():
     logging.info('Deleting old logs...')
     delete_old_logs()
 
-    start_date = datetime.now() - timedelta(hours=config.TIMEFRAME_HOURS)
+    start_date = datetime.now() - timedelta(days=config.TIMEFRAME_HOURS, hours=config.TIMEFRAME_HOURS)
     logging.info('Starting the script...')
     logging.info('Retrieving updated assets...')
     asset_list = get_updated_assets(start_date)
