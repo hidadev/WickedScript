@@ -1,3 +1,16 @@
+#!/usr/bin/env python3 
+# -*- coding: utf-8 -*- 
+#----------------------------------------------------------------------------
+# Created By    : Andrei Fedotov
+# Email         : info@onmars.me
+# Created Date  : 02/06/2022
+# version       = '1.0.0'
+# 
+# SnipeIT API package is maintained by Andrei, feel free to fork it or create
+# an issue at https://github.com/adfedotov/snipeit-api
+# Reach out for any clarification/help with this script
+# ---------------------------------------------------------------------------
+
 from snipeit import SnipeIT
 from jamf import API
 import logging
@@ -8,31 +21,54 @@ import re
 import config
 import os
 import json
+import argparse
 
-STATUS_LABELS = {
-    'Computing Lab': 11,
-    'Departmental': 6,
-    'Loaner': 13,
-    'On Hold': 1,
-    'Primary': 4,
-    'Ready to Deploy': 2,
-    'Received': 14,
-    'Repurpose': 10,
-    'Salvaged': 3,
-    'Secondary': 7,
-    '30 Day Hold': 15,
-    'Imaging': 16
-}
+#TODO: sync deaprtment and buildings?
+
+# Setup command line arguments, if passed, will override config.
+parser = argparse.ArgumentParser(description='SnipeIT2Jamf - script to update Jamf assets with data from SnipeIT')
+parser.add_argument('-hr', help='Number of hours to look back', type=int, required=False)
+parser.add_argument('-d', help='Number of days to look back', type=int, required=False)
+args = parser.parse_args()
 
 snipeit = SnipeIT(config.SNIPEIT_API_URL, config.SNIPEIT_API_KEY)
 jamf = API(hostname=config.JSS_API_URL, username=config.JSS_API_USERNAME, password=config.JSS_API_PASS, prompt=True)
 
+# Check if logs directory exists, if not, create it
+if not os.path.isdir(f'{config.PATH}/logs'):
+    os.makedirs(f'{config.PATH}/logs')
+
+# Setup logging
 now = datetime.now()
 logging.basicConfig(filename=f'{config.PATH}/logs/{now.strftime("%d-%m-%Y_%H-%M-%S")}.log', level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
 # Stores list of computers that failed to be loaded into retry queue
 failed_assets = []
+
+def get_status_labels():
+    """Get status labels
+
+    Returns:
+        dict: returns a dictionary of status label names : ids
+    """
+    labels = {}
+    try:
+        r = snipeit.status_labels.get()
+        r = r['rows']
+    except requests.exceptions.ConnectionError as err:
+        logging.error(err)
+    except requests.exceptions.Timeout as err:
+        logging.error(err)
+    except requests.exceptions.RequestException as err:
+        logging.error(err)
+    else:
+        for label in r:
+            labels[label['name'].lower()] = label['id']
+        return labels
+
+
+STATUS_LABELS = get_status_labels() # Get status labels, will be used instead of hardcoded status label IDs
 
 def delete_old_logs():
     """Delete older logs. The time limit is specified in days in the configuration.
@@ -230,7 +266,7 @@ def format_assets(asset_list):
                 'phone_number': None
             }
 
-        # Check if building and room custom fields exist
+        # Check if building and room custom fields exist NOTE: SnipeIT has an anomaly where Room field key actually has a space after it. THX ANTHONY
         if asset['custom_fields'] != []:
             asset_data[asset_type]['location']['building'] = asset['custom_fields']['Building']['value'] if asset['custom_fields']['Building'] is not None else None
             asset_data[asset_type]['location']['room'] = asset['custom_fields']['Room ']['value'] if asset['custom_fields']['Room '] is not None else None
@@ -239,8 +275,8 @@ def format_assets(asset_list):
         if asset['company'] is not None:
             asset_data[asset_type]['location']['department'] = asset['company']['name']
 
-        # Usage info
-        if asset['status_label']['id'] in [STATUS_LABELS['Ready to Deploy'], STATUS_LABELS['Received']]:
+        # Usage info 
+        if asset['status_label']['id'] in [STATUS_LABELS['ready to deploy'], STATUS_LABELS['received'], STATUS_LABELS['30 day hold']]:
             asset_data[asset_type]['extension_attributes'] = {
                 'extension_attribute': [
                     {
@@ -285,8 +321,12 @@ def main():
     logging.info('Deleting old logs...')
     delete_old_logs()
 
-    start_date = datetime.now() - timedelta(days=config.TIMEFRAME_HOURS, hours=config.TIMEFRAME_HOURS)
+    print(f'Looking {args.d if args.d else config.TIMEFRAME_DAYS} days and {args.hr if args.hr else config.TIMEFRAME_HOURS} hours back')
+
+    start_date = datetime.now() - timedelta(days=args.d if args.d else config.TIMEFRAME_DAYS, 
+                                            hours=args.hr if args.hr else config.TIMEFRAME_HOURS)
     logging.info('Starting the script...')
+
     logging.info('Retrieving updated assets...')
     asset_list = get_updated_assets(start_date)
 
