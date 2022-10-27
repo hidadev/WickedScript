@@ -2,7 +2,7 @@
 
 Currently, script is hosted on DS08 MacMini under Anthony’s account.
 
-# Side Note
+#### Side Note
 All new buildings need to be added to the building custom field in snipeit. 
 
 ### Crontab
