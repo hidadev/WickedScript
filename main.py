@@ -23,8 +23,6 @@ import os
 import json
 import argparse
 
-#TODO: sync deaprtment and buildings?
-
 # Setup command line arguments, if passed, will override config.
 parser = argparse.ArgumentParser(description='SnipeIT2Jamf - script to update Jamf assets with data from SnipeIT')
 parser.add_argument('-hr', help='Number of hours to look back', type=int, required=False)
@@ -69,6 +67,86 @@ def get_status_labels():
 
 
 STATUS_LABELS = get_status_labels() # Get status labels, will be used instead of hardcoded status label IDs
+
+def sync_buildings():
+    """Synchromnize buildings from SnipeIT to JSS
+    """
+    snipeit_buildings = []
+    jamf_buildings = []
+    formatted_jamf_buildings = []
+    try:
+        r = snipeit.fields.get_field_by_id(6)
+        snipeit_buildings = r['field_values_array']
+    except requests.exceptions.ConnectionError as err:
+        logging.error(err)
+        return
+    except requests.exceptions.Timeout as err:
+        logging.error(err)
+        return
+    except requests.exceptions.RequestException as err:
+        logging.error(err)
+        return
+    
+    try:
+        r = jamf.get('buildings')
+        jamf_buildings = r['buildings']['building']
+    except Exception as err:
+        logging.error(err)
+        return
+    
+    for building in jamf_buildings:
+        formatted_jamf_buildings.append(building['name'].lower())
+
+    for building in snipeit_buildings:
+        if building.lower() not in formatted_jamf_buildings:
+            logging.info(f'{building} not in jamf, trying to add')
+            try:
+                r = jamf.post('buildings', {'building': {'name': building}})
+            except Exception as err:
+                logging.error(err)
+                continue
+
+def sync_departments():
+    """Synchronize departments from SnipeIT to JSS
+    """
+    snipeit_departments = []
+    formatted_snipeit_departments = []
+    jamf_departments = []
+    formatted_jamf_departments = []
+    try:
+        r = snipeit.companies.get()
+        snipeit_departments = r['rows']
+    except requests.exceptions.ConnectionError as err:
+        logging.error(err)
+        return
+    except requests.exceptions.Timeout as err:
+        logging.error(err)
+        return
+    except requests.exceptions.RequestException as err:
+        logging.error(err)
+        return
+    
+    try:
+        r = jamf.get('departments')
+        jamf_departments = r['departments']['department']
+    except Exception as err:
+        logging.error(err)
+        return
+
+    for department in snipeit_departments:
+        formatted_snipeit_departments.append(department['name'].lower())
+    
+    for department in jamf_departments:
+        formatted_jamf_departments.append(department['name'].lower())
+
+    for department in formatted_snipeit_departments:
+        if department not in formatted_jamf_departments:
+            logging.info(f'{department} not in jamf, trying to add')
+            try:
+                r = jamf.post('departments', {'department': {'name': department}})
+            except Exception as err:
+                logging.error(err)
+                continue
 
 def delete_old_logs():
     """Delete older logs. The time limit is specified in days in the configuration.
@@ -320,6 +398,11 @@ def update_jamf_computer(serial: str, data: dict):
 def main():
     logging.info('Deleting old logs...')
     delete_old_logs()
+
+    logging.info('Syncing buildings...')
+    sync_buildings()
+    logging.info('Syncing departments...')
+    sync_departments()
 
     print(f'Looking {args.d if args.d else config.TIMEFRAME_DAYS} days and {args.hr if args.hr else config.TIMEFRAME_HOURS} hours back')
 
