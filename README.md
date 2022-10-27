@@ -2,6 +2,9 @@
 
 Currently, script is hosted on DS08 MacMini under Anthony’s account.
 
+# Side Note
+All new buildings need to be added to the building custom field in snipeit. 
+
 ### Crontab
 
 Crontab is used to schedule the script to run every 12 hours, at 11:59 and 23:59. To edit crontab, use “crontab -e”, the configuration file will open with a *vi(m)* editor. This configuration will be erased when computer restarts. DS08 computer right now is on 24/7
@@ -58,7 +61,7 @@ If an asset can’t be updated, as it is the case with pre-staged computers that
 
 ## Manually Run the Script
 
-To manually run the script, you will need to navigate to the Python script directory on a host machine, activate python virtual environment “source /venv/bin/activate” and simply running the [main.py](http://main.py) file “python3 main.py”
+To manually run the script, you will need to navigate to the Python script directory on a host machine, activate python virtual environment “source /venv/bin/activate” and simply run the main.py file “python3 main.py”, you can also provide command line parameters: -hr # (number of hours to look back), -d # (number of days to look back). Use "python3 main.py -h" for help.
 
 ## Force Update All
 
@@ -79,5 +82,8 @@ Let’s say something went wrong, and you need to make sure that all assets are 
 ## Potential Improvements
 
 - Store last successful update date so if something goes wrong on the next one, there is a reference point for assets that were not able to update
-- Create command line arguments to run script instead of modifying configuration
 - Find a better way to schedule
+
+## Completed Improvements
+- Create command line arguments to run script instead of modifying configuration
+- Buildings and Departments are now synchronized
