@@ -222,8 +222,15 @@ def get_failed_assets():
         except requests.exceptions.RequestException as err:
             logging.error(err)
             continue
+        except Exception as err:
+            # If other error occured, 
+            # it will stay in the failed assets list for debug and tracking purposes
+            logging.error(err)
+            continue
         else:
-            unformatted_assets.append(r)
+            # We want to make sure that there is a direct match between SnipeIT serial and serial number of failed asset since snipeit search is general
+            if r['serial'] == asset:
+                unformatted_assets.append(r)
 
     return unformatted_assets
 
