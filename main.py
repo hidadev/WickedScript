@@ -370,15 +370,25 @@ def format_assets(asset_list):
                     }
                 ]
             }
-        elif asset['status_label']['name'] in STATUS_LABELS:
-            asset_data[asset_type]['extension_attributes'] = {
-                'extension_attribute': [
-                    {
-                        'name': 'Usage',
-                        'value': asset['status_label']['name']
-                    }
-                ]
-            }
+        elif asset['status_label']['name'].lower() in STATUS_LABELS:
+            if 'primary' in asset['status_label']['name'].lower():
+                asset_data[asset_type]['extension_attributes'] = {
+                    'extension_attribute': [
+                        {
+                            'name': 'Usage',
+                            'value': 'Primary'
+                        }
+                    ]
+                }
+            else:
+                asset_data[asset_type]['extension_attributes'] = {
+                    'extension_attribute': [
+                        {
+                            'name': 'Usage',
+                            'value': asset['status_label']['name']
+                        }
+                    ]
+                }
         else:
             logging.debug('Couldn\'t match usage information')
 
